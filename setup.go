@@ -15,25 +15,30 @@ const (
 	addr = "localhost:9180"
 )
 
+var once sync.Once
+
 // Metrics holds the prometheus configuration. The metrics' path is fixed to be /metrics
 type Metrics struct {
 	next middleware.Handler
 	addr string // where to we listen
 	// subsystem?
+	once sync.Once
 }
 
 func (m *Metrics) start() error {
-	define("")
+	m.once.Do(func() {
+		define("")
 
-	prometheus.MustRegister(requestCount)
-	prometheus.MustRegister(requestDuration)
-	prometheus.MustRegister(responseSize)
-	prometheus.MustRegister(responseStatus)
+		prometheus.MustRegister(requestCount)
+		prometheus.MustRegister(requestDuration)
+		prometheus.MustRegister(responseSize)
+		prometheus.MustRegister(responseStatus)
 
-	http.Handle(path, prometheus.Handler())
-	go func() {
-		fmt.Errorf("%s", http.ListenAndServe(m.addr, nil))
-	}()
+		http.Handle(path, prometheus.Handler())
+		go func() {
+			fmt.Errorf("%s", http.ListenAndServe(m.addr, nil))
+		}()
+	})
 	return nil
 }
 
@@ -45,7 +50,6 @@ func Setup(c *setup.Controller) (middleware.Middleware, error) {
 	if metrics.addr == "" {
 		metrics.addr = addr
 	}
-	once := &sync.Once{}
 	once.Do(func() {
 		c.Startup = append(c.Startup, metrics.start)
 	})
@@ -63,7 +67,7 @@ func Setup(c *setup.Controller) (middleware.Middleware, error) {
 func parse(c *setup.Controller) (*Metrics, error) {
 	var (
 		metrics *Metrics
-		err error
+		err     error
 	)
 
 	for c.Next() {
