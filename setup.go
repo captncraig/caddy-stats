@@ -61,13 +61,16 @@ func Setup(c *setup.Controller) (middleware.Middleware, error) {
 // }
 // Or just: prometheus localhost:9180
 func parse(c *setup.Controller) (*Metrics, error) {
-	metrics := &Metrics{}
-	var err error
+	var (
+		metrics *Metrics
+		err error
+	)
 
 	for c.Next() {
 		if metrics != nil {
 			return nil, c.Err("prometheus: can only have one metrics module per server")
 		}
+		metrics = &Metrics{}
 		args := c.RemainingArgs()
 
 		switch len(args) {
