@@ -1,16 +1,16 @@
 package metrics
 
 import (
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
-
-	"github.com/mholt/caddy/middleware"
 )
 
 func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
 	next := m.next
-	host, err := middleware.Context.Host()
+	host, err := host(r)
 	if err != nil {
 		host = "-"
 	}
@@ -23,5 +23,16 @@ func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error)
 	// responseSize.WithLabelValues(host).Observe(rlen) // TODO(miek): how to get the length?
 	responseStatus.WithLabelValues(host, strconv.Itoa(status)).Inc()
 
-	return code, err
+	return status, err
+}
+
+func host(r *http.Request) (string, error) {
+	host, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		if !strings.Contains(r.Host, ":") {
+			return r.Host, nil
+		}
+		return "", err
+	}
+	return host, nil
 }

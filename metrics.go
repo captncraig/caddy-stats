@@ -1,12 +1,15 @@
 package metrics
 
-import (
-	"os"
-
-	"github.com/prometheus/client_golang/prometheus"
-)
+import "github.com/prometheus/client_golang/prometheus"
 
 const namespace = "caddy"
+
+var (
+	requestCount    *prometheus.CounterVec
+	requestDuration *prometheus.HistogramVec
+	responseSize    *prometheus.HistogramVec
+	responseStatus  *prometheus.CounterVec
+)
 
 func define(subsystem string) {
 	if subsystem == "" {
@@ -14,29 +17,29 @@ func define(subsystem string) {
 	}
 	requestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
-		Subsystem: Subsystem,
+		Subsystem: subsystem,
 		Name:      "request_count_total",
 		Help:      "Counter of HTTP(S) requests made.",
 	}, []string{"host"})
 
 	requestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: namespace,
-		Subsystem: Subsystem,
+		Subsystem: subsystem,
 		Name:      "request_duration_seconds",
 		Help:      "Histogram of the time (in seconds) each request took.",
 	}, []string{"host"})
 
 	responseSize = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: namespace,
-		Subsystem: Subsystem,
+		Subsystem: subsystem,
 		Name:      "response_size_bytes",
 		Help:      "Size of the returns response in bytes.",
 		Buckets:   []float64{0, 500, 1000, 2000, 3000, 4000, 5000, 10000, 20000, 30000, 50000, 100000},
 	}, []string{"host"})
 
-	responseStatus = prometheus.NewCounterVec(prometheus.HistogramOpts{
+	responseStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
-		Subsystem: Subsystem,
+		Subsystem: subsystem,
 		Name:      "status_code_count_total",
 		Help:      "Counter of response status codes.",
 	}, []string{"host", "status"})

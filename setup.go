@@ -22,7 +22,7 @@ type Metrics struct {
 	// subsystem?
 }
 
-func (m *metrics) start() error {
+func (m *Metrics) start() error {
 	define("")
 
 	prometheus.MustRegister(requestCount)
@@ -43,15 +43,16 @@ func Setup(c *setup.Controller) (middleware.Middleware, error) {
 		return nil, err
 	}
 	if metrics.addr == "" {
-		metrcs.addr = addr
+		metrics.addr = addr
 	}
-	sync.Once.Do(func() {
-		c.Startup = append(c.Startup, start)
+	once := &sync.Once{}
+	once.Do(func() {
+		c.Startup = append(c.Startup, metrics.start)
 	})
 
 	return func(next middleware.Handler) middleware.Handler {
-		module.next = next
-		return module
+		metrics.next = next
+		return metrics
 	}, nil
 }
 
@@ -83,7 +84,7 @@ func parse(c *setup.Controller) (*Metrics, error) {
 				if len(args) != 1 {
 					return nil, c.ArgErr()
 				}
-				module.addr = args[0]
+				metrics.addr = args[0]
 			default:
 				return nil, c.Errf("prometheus: unknown item: %s", c.Val())
 			}
