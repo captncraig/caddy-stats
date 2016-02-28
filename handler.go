@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mholt/caddy/middleware"
 )
 
 func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
@@ -16,12 +18,14 @@ func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error)
 	}
 	start := time.Now()
 
-	status, err := next.ServeHTTP(w, r)
+	// Record response to get status code and size of the reply.
+	rw := middleware.NewResponseRecorder(w)
+	status, err := next.ServeHTTP(rw, r)
 
 	requestCount.WithLabelValues(host).Inc()
 	requestDuration.WithLabelValues(host).Observe(float64(time.Since(start)) / float64(time.Second))
-	// responseSize.WithLabelValues(host).Observe(rlen) // TODO(miek): how to get the length?
-	responseStatus.WithLabelValues(host, strconv.Itoa(status)).Inc()
+	responseSize.WithLabelValues(host).Observe(float64(rw.Size()))
+	responseStatus.WithLabelValues(host, strconv.Itoa(rw.Status())).Inc()
 
 	return status, err
 }
