@@ -34,7 +34,7 @@ func define(subsystem string) {
 		Subsystem: subsystem,
 		Name:      "response_size_bytes",
 		Help:      "Size of the returns response in bytes.",
-		Buckets:   []float64{0, 500, 1000, 2000, 3000, 4000, 5000, 10000, 20000, 30000, 50000, 1e5, 5e5, 1e6, 2e6, 3e6},
+		Buckets:   []float64{0, 500, 1000, 2000, 3000, 4000, 5000, 10000, 20000, 30000, 50000, 1e5, 5e5, 1e6, 2e6, 3e6, 4e6, 5e6, 10e6},
 	}, []string{"host"})
 
 	responseStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
