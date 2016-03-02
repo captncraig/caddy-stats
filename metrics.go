@@ -40,7 +40,7 @@ func define(subsystem string) {
 	responseStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: subsystem,
-		Name:      "status_code_count_total",
+		Name:      "response_status_count_total",
 		Help:      "Counter of response status codes.",
 	}, []string{"host", "status"})
 }
