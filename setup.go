@@ -58,7 +58,7 @@ func setup(c *caddy.Controller) error {
 		metrics.addr = addr
 	}
 	once.Do(func() {
-		c.OnStartup = append(c.Startup, metrics.start)
+		c.OnStartup(metrics.start)
 	})
 
 	httpserver.GetConfig(c).AddMiddleware(func(next httpserver.Handler) httpserver.Handler {
