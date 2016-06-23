@@ -1,77 +1,42 @@
-package stats
+package metrics
 
 import (
-	"fmt"
+	"net"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
-	"github.com/mholt/caddy/middleware"
-	"github.com/rcrowley/go-metrics"
+	"github.com/mholt/caddy/caddyhttp/httpserver"
 )
 
-func (m *metricsModule) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
+func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
 	next := m.next
-	path := ""
-	if m.uiPath != "" && middleware.Path(r.URL.Path).Matches(m.uiPath) {
-		next = statsHandler{}
-		path = "getStats"
-	}
-	if path == "" {
-		path = m.pathName(r.URL.Path, r.Method)
-	}
-	//every datapoint gets tagged with server and path. A few get some extra.
-	tags := func(extra ...string) map[string]string {
-		m := map[string]string{"path": path, "server": m.serverName}
-		if len(extra)%2 == 0 {
-			for i := 1; i < len(extra); i += 2 {
-				m[extra[i-1]] = extra[i]
-			}
-		}
-		return m
+	host, err := host(r)
+	if err != nil {
+		host = "-"
 	}
 	start := time.Now()
-	code, err := next.ServeHTTP(w, r)
-	duration := time.Now().Sub(start)
 
-	mname := MetricName("caddy.requests", tags("status", fmt.Sprint(code)))
-	counter := metrics.GetOrRegisterCounter(mname, metrics.DefaultRegistry)
-	counter.Inc(1)
+	// Record response to get status code and size of the reply.
+	rw := httpserver.NewResponseRecorder(w)
+	status, err := next.ServeHTTP(rw, r)
 
-	mname = MetricName("caddy.errors", tags())
-	counter = metrics.GetOrRegisterCounter(mname, metrics.DefaultRegistry)
+	requestCount.WithLabelValues(host).Inc()
+	requestDuration.WithLabelValues(host).Observe(float64(time.Since(start)) / float64(time.Second))
+	responseSize.WithLabelValues(host).Observe(float64(rw.Size()))
+	responseStatus.WithLabelValues(host, strconv.Itoa(rw.Status())).Inc()
+
+	return status, err
+}
+
+func host(r *http.Request) (string, error) {
+	host, _, err := net.SplitHostPort(r.Host)
 	if err != nil {
-		counter.Inc(1)
-	}
-
-	mname = MetricName("caddy.response_time", tags())
-	timer := metrics.GetOrRegisterTimer(mname, metrics.DefaultRegistry)
-	timer.Update(duration)
-
-	return code, err
-}
-
-type statsHandler struct{}
-
-func (s statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
-	snapshotLock.RLock()
-	defer snapshotLock.RUnlock()
-	w.Write(currentJSON)
-	w.Header().Set("Content-Type", "application/json")
-	return 200, nil
-}
-
-func (m *metricsModule) pathName(url string, method string) string {
-	for _, pth := range m.paths {
-		if middleware.Path(url).Matches(pth.path) {
-			if pth.methods == nil {
-				return pth.name
-			}
-			for _, m := range pth.methods {
-				if m == method {
-					return pth.name
-				}
-			}
+		if !strings.Contains(r.Host, ":") {
+			return r.Host, nil
 		}
+		return "", err
 	}
-	return "/"
+	return host, nil
 }
